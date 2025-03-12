@@ -21,17 +21,21 @@ python prepare_Autonomous.py [--data TYPE] [--frame COUNT]
     - **k**: Kinesthetic dataset
     - **t**: Teleoperation dataset
 - **--frame or -f**: Specify the number of frames to extract from each operation (default: 25)
+- **--parallel or -p**: Enable parallel processing for faster extraction (default: False)
 
 ### Example
 ```bash
 # Process Autonomous dataset with default 25 frames
-python prepare_Autonomous.py
+python download.py
 
 # Process Kinesthetic dataset
-python prepare_Autonomous.py --data k
+python download.py --data k
 
 # Process Teleoperation dataset with 30 frames
-python prepare_Autonomous.py -d t -f 30
+python download.py -d t -f 30
+
+# Process Autonomous dataset with 25 frames using parallel processing
+python download.py -p
 ```
 
 ### Output Structure
