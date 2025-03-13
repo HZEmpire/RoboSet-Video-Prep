@@ -56,9 +56,11 @@ def save_video_with_imageio(frames, output_path, fps=10):
         
         # Adjust dimensions to multiples of 16 to avoid warnings and ensure compatibility
         frames = adjust_dimensions_to_multiple_of_16(frames)
-            
-        # Write video using imageio
-        imageio.mimsave(output_path, frames, fps=fps, quality=8)
+        
+        writer = imageio.get_writer(output_path, fps=fps, quality=8)
+        for frame in frames:
+            writer.append_data(frame)
+        writer.close()
         return True
     except Exception as e:
         print(f"Error saving video with imageio: {e}")
