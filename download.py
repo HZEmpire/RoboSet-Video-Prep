@@ -32,7 +32,7 @@ def download_file(url, destination, position=0):
             size = file.write(data)
             bar.update(size)
 
-def download_and_process_item(item, base_dir, frame_count=25):
+def download_and_process_item(item, base_dir, frame_count=25, max_pairs=500):
     """
     Download and process a single data item.
     :param item: A tuple (row, pos), where pos is the unique progress bar position.
@@ -57,7 +57,7 @@ def download_and_process_item(item, base_dir, frame_count=25):
         download_file(url, tar_path, position=pos)
         
         # Process the downloaded tar file
-        process_tarfile(tar_path, task_name, task_dir, frame_count)
+        process_tarfile(tar_path, task_name, task_dir, frame_count, max_pairs)
         
     except Exception as e:
         print(f"Error processing {task_name}: {e}")
@@ -67,7 +67,7 @@ def download_and_process_item(item, base_dir, frame_count=25):
     
     return f"Completed: {task_name}"
 
-def process_dataset(csv_file, base_dir, frame_count=25, parallel=False):
+def process_dataset(csv_file, base_dir, frame_count=25, max_pairs=500, parallel=False):
     """Process the dataset based on the CSV file"""
     # Make sure the base directory exists
     ensure_dir(base_dir)
@@ -77,7 +77,7 @@ def process_dataset(csv_file, base_dir, frame_count=25, parallel=False):
         reader = csv.DictReader(csvfile)
         rows = list(reader)
     
-    # 为每个任务分配唯一的 position
+    # Allocate unique position
     items = [(row, idx) for idx, row in enumerate(rows)]
     
     if parallel:
@@ -89,7 +89,7 @@ def process_dataset(csv_file, base_dir, frame_count=25, parallel=False):
         with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
             # Note: functools.partial cannot fix the 'item' parameter here since it varies.
             results = list(executor.map(
-                functools.partial(download_and_process_item, base_dir=base_dir, frame_count=frame_count),
+                functools.partial(download_and_process_item, base_dir=base_dir, frame_count=frame_count, max_pairs=max_pairs),
                 items
             ))
             
@@ -99,7 +99,7 @@ def process_dataset(csv_file, base_dir, frame_count=25, parallel=False):
     else:
         # Sequential processing: iterate with assigned progress bar positions.
         for item in items:
-            result = download_and_process_item(item, base_dir, frame_count)
+            result = download_and_process_item(item, base_dir, frame_count, max_pairs)
             print(result)
             time.sleep(1)
 
@@ -113,6 +113,8 @@ def main():
                         help='Number of frames to extract (default: 25)')
     parser.add_argument('--parallel', '-p', action='store_true',
                         help='Enable parallel processing for faster execution')
+    parser.add_argument('--number', '-n', type=int, default=500,
+                        help='Maximum number of video/json pairs per view (default: 500)')
     
     args = parser.parse_args()
     
@@ -128,7 +130,7 @@ def main():
         base_dir = "./Autonomous"
     
     # Process the dataset with parallel option
-    process_dataset(csv_file, base_dir, args.frame, args.parallel)
+    process_dataset(csv_file, base_dir, args.frame, args.number, args.parallel)
 
 if __name__ == "__main__":
     main()

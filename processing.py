@@ -1,5 +1,4 @@
 import os
-import csv
 import tarfile
 import h5py
 import numpy as np
@@ -57,7 +56,8 @@ def save_video_with_imageio(frames, output_path, fps=10):
         # Adjust dimensions to multiples of 16 to avoid warnings and ensure compatibility
         frames = adjust_dimensions_to_multiple_of_16(frames)
         
-        writer = imageio.get_writer(output_path, fps=fps, quality=8)
+        #writer = imageio.get_writer(output_path, fps=fps, quality=8)
+        writer = imageio.get_writer(output_path, quality=8)
         for frame in frames:
             writer.append_data(frame)
         writer.close()
@@ -66,10 +66,11 @@ def save_video_with_imageio(frames, output_path, fps=10):
         print(f"Error saving video with imageio: {e}")
         return False
 
-def process_h5_file(h5_path, task_name, output_folder, frame_count=25):
-    """Process a single h5 file, extract frames and generate videos"""
-    # print(f"Processing {h5_path}")
-    
+def process_h5_file(h5_path, task_name, output_folder, frame_count=25, max_pairs=500):
+    """
+Process a single h5 file, extract frames and generate videos.
+    Returns True if processed completely, or False if early termination occurred.
+    """    
     base_filename = os.path.basename(h5_path).replace('.h5', '')
     
     try:
@@ -108,6 +109,12 @@ def process_h5_file(h5_path, task_name, output_folder, frame_count=25):
                     view_folder = os.path.join(output_folder, view_name)
                     # Make sure the view folder exists
                     ensure_dir(view_folder)
+                    
+                    # Check if the view folder has reached the limit
+                    existing_files = os.listdir(view_folder)
+                    if len(existing_files) >= 2 * max_pairs:
+                        print(f"Skipping {view_name}: reached limit ({len(existing_files)//2} pairs)")
+                        continue
                     
                     video_path = os.path.join(view_folder, video_name)
                     
@@ -155,15 +162,26 @@ def process_h5_file(h5_path, task_name, output_folder, frame_count=25):
                     with open(json_path, 'w') as json_file:
                         json.dump({"0": task_name}, json_file)
                     
-                    #print(f"Saved JSON: {json_path}")
-                    
+                    # Check if the view folder has reached the limit
+                all_done = True
+                for view in rgb_views:
+                    view_name = view.split('_')[1]
+                    folder = os.path.join(output_folder, view_name)
+                    if len(os.listdir(folder)) < 2 * max_pairs:
+                        all_done = False
+                        break
+                if all_done:
+                    print("All views reached limit; skipping remaining h5 files.")
+                    return False
+            return True                    
     except Exception as e:
         print(f"Error processing {h5_path}: {e}")
         import traceback
         # Print detailed error traceback
         traceback.print_exc()
+        return True
 
-def process_tarfile(tar_path, task_name, output_folder, frame_count=25):
+def process_tarfile(tar_path, task_name, output_folder, frame_count=25, max_pairs=500):
     """Process the dataset based on the tar file"""
     # Make sure the output folder exists
     ensure_dir(output_folder)
@@ -188,7 +206,9 @@ def process_tarfile(tar_path, task_name, output_folder, frame_count=25):
             
             # Process each h5 file
             for h5_file in h5_files:
-                process_h5_file(h5_file, task_name, output_folder, frame_count)
+                cont = process_h5_file(h5_file, task_name, output_folder, frame_count, max_pairs)
+                if not cont:
+                    break
         else:
             print("No h5 files found")
         
